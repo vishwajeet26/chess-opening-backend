@@ -1,5 +1,5 @@
 from .. import database, models
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException, status
 from .. import schemas
 from sqlalchemy.orm import Session
 from typing import List
@@ -15,3 +15,33 @@ def create(request: schemas.Opening,db: Session = Depends(get_db)):
     db.commit()
     db.refresh(new_opening)
     return f'Opening - {request.name} has been posted.'
+
+@router.get('/')
+def get_all(db: Session = Depends(get_db)):
+    opening = db.query(models.Opening).all()
+    return opening
+
+@router.get('/{ecocode}}')
+def get(ecocode: str, db: Session = Depends(get_db)):
+    opening = db.query(models.Opening).filter(models.Opening.ecocode == ecocode).first()
+    if not opening: 
+       raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Opening with the Eco code - {ecocode} does not exist.")
+    return opening
+
+@router.delete('/{ecocode}')
+def destroy(ecocode: str, db: Session = Depends(get_db)):
+    opening = db.query(models.Opening).filter(models.Opening.ecocode == ecocode)
+    if not opening.first():
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Opening with id {id} is not found")
+    opening.delete(synchronize_session=False)
+    db.commit()
+    return f'The opening with ecocode-{ecocode} was deleted.'
+
+@router.put('/{id}', status_code=202)
+def update(id: int, request: schemas.Opening, db: Session = Depends(get_db)):
+    opening = db.query(models.Opening).filter(models.Opening.id == id)
+    if not opening.first():
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Opening with id {id} is not found")
+    opening.update({'name': request.name, 'description': request.description})
+    db.commit()
+    return 'updated'
